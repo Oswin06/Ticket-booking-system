@@ -1,0 +1,57 @@
+set ns [new Simulator]
+
+#To initialize nam file
+set namfile [open out.nam w]
+$ns namtrace-all $namfile
+
+
+#To define Finish procedure
+proc finish {} {
+global ns namfile
+$ns flush-trace
+close $namfile
+exec nam out.nam &
+exit 0
+}
+
+# Initializing Nodes
+set n0 [$ns node]
+set n1 [$ns node]
+set n2 [$ns node]
+set n3 [$ns node]
+
+# Setting links between nodes
+
+$ns duplex-link $n0 $n1 5Mb 10ms DropTail
+$ns duplex-link $n1 $n3 5Mb 10ms DropTail
+$ns duplex-link $n0 $n2 10Mb 10ms DropTail
+$ns duplex-link $n2 $n3 10Mb 10ms DropTail
+$ns duplex-link $n1 $n2 10Mb 10ms DropTail
+
+# Creating traffic : creating a TCP agent and a sink agent. TCP agent will send packets and sink agent will recieve and acknowledge it
+set tcp [new Agent/TCP]
+$ns attach-agent $n0 $tcp
+
+set sink [new Agent/TCPSink]
+$ns attach-agent $n3 $sink
+
+$ns connect $tcp $sink
+
+set cbr [new Application/Traffic/CBR]
+$cbr attach-agent $tcp
+$cbr set packetsize_ 1000
+$cbr set rate_ 1Mb
+
+#breaking link n1-n3 and again making it working after some time
+$ns rtmodel-at 0.5 down $n2 $n3
+$ns rtmodel-at 0.8 up $n2 $n3
+$ns rtmodel-at 1.0 down $n1 $n3
+
+$ns rtproto DV
+
+$ns at 0.05 "$cbr start"
+$ns at 3.5 "$cbr stop"
+
+$ns at 4.0 "finish"
+
+$ns run
